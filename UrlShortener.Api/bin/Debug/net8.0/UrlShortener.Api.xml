@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>UrlShortener.Api</name>
+    </assembly>
+    <members>
+        <member name="T:UrlShortener.Api.Controllers.UrlController">
+            <summary>
+            URL kısaltma ve yönlendirme işlemleri için API
+            </summary>
+        </member>
+        <member name="M:UrlShortener.Api.Controllers.UrlController.ShortenUrl(UrlShortener.Api.Models.UrlRequest)">
+            <summary>
+            Uzun bir URL'yi kısaltır
+            </summary>
+            <param name="request">Kısaltılacak URL bilgisi</param>
+            <returns>Kısaltılmış URL bilgisi</returns>
+            <response code="200">URL başarıyla kısaltıldı</response>
+            <response code="400">Geçersiz URL formatı</response>
+        </member>
+        <member name="M:UrlShortener.Api.Controllers.UrlController.RedirectToOriginalUrl(System.String)">
+            <summary>
+            Kısa URL kodunu kullanarak orijinal URL'ye yönlendirir
+            </summary>
+            <param name="shortCode">Kısa URL kodu</param>
+            <returns>Orijinal URL'ye yönlendirme</returns>
+            <response code="302">Orijinal URL'ye başarıyla yönlendirildi</response>
+            <response code="404">Kısa URL kodu bulunamadı</response>
+        </member>
+        <member name="M:UrlShortener.Api.Controllers.UrlController.GetUrlStats(System.String)">
+            <summary>
+            Kısa URL'nin istatistiklerini getirir
+            </summary>
+            <param name="shortCode">Kısa URL kodu</param>
+            <returns>URL istatistikleri</returns>
+            <response code="200">İstatistikler başarıyla getirildi</response>
+            <response code="404">Kısa URL kodu bulunamadı</response>
+        </member>
+        <member name="M:UrlShortener.Api.Controllers.UrlController.UpdateUrlStatus(System.String,UrlShortener.Api.Models.UrlStatusUpdateRequest)">
+            <summary>
+            Kısa URL'nin durumunu günceller
+            </summary>
+            <param name="shortCode">Kısa URL kodu</param>
+            <param name="status">Yeni durum</param>
+            <returns>Güncellenmiş URL bilgisi</returns>
+            <response code="200">Durum başarıyla güncellendi</response>
+            <response code="404">Kısa URL kodu bulunamadı</response>
+        </member>
+    </members>
+</doc>
