@@ -12,7 +12,7 @@ A modern URL shortening service built with ASP.NET Core, PostgreSQL, and Redis.
 
 ## Tech Stack
 
-- **Backend**: ASP.NET Core 7.0
+- **Backend**: ASP.NET Core 8.0
 - **Database**: PostgreSQL 14
 - **Caching**: Redis
 - **Containerization**: Docker & Docker Compose
@@ -28,7 +28,7 @@ A modern URL shortening service built with ASP.NET Core, PostgreSQL, and Redis.
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/cancakmk/URLShortener
    cd URLShortener
    ```
 
