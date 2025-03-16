@@ -6,14 +6,29 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - postgres
-      - redis
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=urlshortener;Username=postgres;Password=postgres
-      - ConnectionStrings__RedisConnection=redis:6379
+      - ConnectionStrings__RedisConnection=redis:6379,password=RedisStrongPassword123!,allowAdmin=true,abortConnect=false
       - BaseUrl=http://localhost:5000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   postgres:
     image: postgres:14
@@ -30,6 +45,16 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - url-shortener-network
+    user: postgres
+    security_opt:
+      - no-new-privileges:true
 
   redis:
     image: redis:alpine
@@ -38,7 +63,24 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    command: redis-server --requirepass RedisStrongPassword123! --appendonly yes
+    deploy:
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 256M
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "RedisStrongPassword123!", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 50
 
 volumes:
   postgres-data:
-  redis-data: 
+  redis-data:
+
+networks:
+  url-shortener-network:
+    driver: bridge 

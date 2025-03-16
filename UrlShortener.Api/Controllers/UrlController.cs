@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using UrlShortener.Api.Models;
 using UrlShortener.Api.Services;
+using System;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace UrlShortener.Api.Controllers
 {
@@ -27,17 +30,24 @@ namespace UrlShortener.Api.Controllers
         /// <returns>Shortened URL information</returns>
         /// <response code="200">URL successfully shortened</response>
         /// <response code="400">Invalid URL format</response>
+        /// <response code="429">Too many requests</response>
         [HttpPost("shorten")]
+        [EnableRateLimiting("ShortenEndpoint")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         public async Task<IActionResult> ShortenUrl([FromBody] UrlRequest request)
         {
-            if (!Uri.TryCreate(request.Url, UriKind.Absolute, out _))
+            if (!Uri.TryCreate(request.Url, UriKind.Absolute, out Uri uriResult) || 
+                (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
             {
-                return BadRequest("Invalid URL format");
+                return BadRequest("Invalid URL format. Only HTTP and HTTPS URLs are allowed.");
             }
 
-            var shortenedUrl = await _urlShortenerService.ShortenUrlAsync(request.Url);
+            // Sanitize URL to prevent XSS
+            string sanitizedUrl = SanitizeUrl(request.Url);
+
+            var shortenedUrl = await _urlShortenerService.ShortenUrlAsync(sanitizedUrl);
             var baseUrl = _configuration["BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
 
             return Ok(new
@@ -66,6 +76,12 @@ namespace UrlShortener.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RedirectToOriginalUrl(string shortCode)
         {
+            // Validate shortCode format to prevent injection attacks
+            if (!IsValidShortCode(shortCode))
+            {
+                return BadRequest("Invalid short code format");
+            }
+
             var shortenedUrl = await _urlShortenerService.GetByShortCodeAsync(shortCode);
 
             if (shortenedUrl == null)
@@ -79,6 +95,13 @@ namespace UrlShortener.Api.Controllers
             }
 
             await _urlShortenerService.IncrementClickCountAsync(shortCode);
+
+            // Validate URL before redirecting to prevent open redirect vulnerabilities
+            if (!Uri.TryCreate(shortenedUrl.OriginalUrl, UriKind.Absolute, out Uri uriResult) || 
+                (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
+            {
+                return BadRequest("Invalid URL format in database. Cannot redirect.");
+            }
 
             return Redirect(shortenedUrl.OriginalUrl);
         }
@@ -129,6 +152,12 @@ namespace UrlShortener.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateUrlStatus(string shortCode, [FromBody] UrlStatusUpdateRequest request)
         {
+            // Validate shortCode format to prevent injection attacks
+            if (!IsValidShortCode(shortCode))
+            {
+                return BadRequest("Invalid short code format");
+            }
+
             var shortenedUrl = await _urlShortenerService.GetByShortCodeAsync(shortCode);
 
             if (shortenedUrl == null)
@@ -151,6 +180,26 @@ namespace UrlShortener.Api.Controllers
                 LastClickedAt = shortenedUrl.LastClickedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
                 Status = shortenedUrl.Status.ToString()
             });
+        }
+
+        /// <summary>
+        /// Validates if the short code format is valid
+        /// </summary>
+        private bool IsValidShortCode(string shortCode)
+        {
+            // Only allow alphanumeric characters, hyphens, and underscores with length 8
+            return !string.IsNullOrEmpty(shortCode) && 
+                   shortCode.Length == 8 && 
+                   Regex.IsMatch(shortCode, "^[a-zA-Z0-9_-]+$");
+        }
+
+        /// <summary>
+        /// Sanitizes a URL to prevent XSS attacks
+        /// </summary>
+        private string SanitizeUrl(string url)
+        {
+            // Remove potentially dangerous characters
+            return Regex.Replace(url, @"[<>""']", "");
         }
     }
 } 
